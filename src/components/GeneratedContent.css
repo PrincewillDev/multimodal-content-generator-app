@@ -1,0 +1,43 @@
+/* Custom styles for GeneratedContent component */
+
+.progress-bar {
+  width: var(--progress-width, 0%);
+  transition: width 0.1s ease-in-out;
+}
+
+/* Audio waveform animation */
+@keyframes wave {
+  0%, 100% { height: 0.5rem; }
+  50% { height: 2rem; }
+}
+
+.waveform-bar {
+  animation: wave 1s ease-in-out infinite;
+}
+
+.waveform-bar:nth-child(2n) { animation-delay: 0.1s; }
+.waveform-bar:nth-child(3n) { animation-delay: 0.2s; }
+.waveform-bar:nth-child(4n) { animation-delay: 0.3s; }
+.waveform-bar:nth-child(5n) { animation-delay: 0.4s; }
+
+/* Responsive image hover effects */
+.image-container {
+  transition: all 0.3s ease;
+}
+
+.image-container:hover {
+  transform: scale(1.02);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+/* Loading shimmer effect */
+@keyframes shimmer {
+  0% { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+  background-size: 200px 100%;
+  animation: shimmer 1.5s infinite;
+}
