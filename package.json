@@ -17,6 +17,8 @@
     "test:quick": "node quick-test.js",
     "test:manual": "./test-manual.sh",
     "test:direct": "node test-direct.js",
+    "test:image": "./test-image-generation.sh",
+    "test:regenerate": "./test-regenerate.sh",
     "test": "node quick-test.js"
   },
   "dependencies": {

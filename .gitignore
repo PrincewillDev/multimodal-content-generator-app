@@ -27,6 +27,10 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
+.env.production
+.env.development
+.env.example
 
 # vercel
 .vercel
@@ -35,5 +39,5 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Security: Ignore environment files with sensitive data
 .env
-.env.example

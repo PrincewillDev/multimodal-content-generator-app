@@ -6,8 +6,9 @@ import dotenv from 'dotenv';
 // Load environment variables
 dotenv.config();
 
-// Import the Groq handler
+// Import the API handlers
 import generateTextHandler from './api/generate-text.js';
+import generateImageHandler from './api/generate-image.js';
 
 const PORT = 3002;
 
@@ -33,9 +34,56 @@ const server = http.createServer(async (req, res) => {
       timestamp: new Date().toISOString(),
       env: {
         hasGroqToken: !!process.env.GROQ_API_KEY,
+        hasHfToken: !!process.env.HUGGING_FACE_API_KEY,
         nodeEnv: process.env.NODE_ENV || 'development'
       }
     }));
+    return;
+  }
+  
+  // Image generation endpoint
+  if (parsedUrl.pathname === '/api/generate-image' && req.method === 'POST') {
+    console.log('🖼️ Received image generation request');
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk.toString();
+    });
+    
+    req.on('end', async () => {
+      try {
+        console.log('📋 Request body:', body);
+        const requestData = JSON.parse(body);
+        console.log('🎯 Parsed request:', requestData);
+        
+        // Create mock Express-like req/res objects
+        const mockReq = {
+          method: 'POST',
+          body: requestData
+        };
+        
+        const mockRes = {
+          status: (code) => ({
+            json: (data) => {
+              console.log(`📤 Sending response (${code}):`, data);
+              res.writeHead(code, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify(data));
+            }
+          }),
+          json: (data) => {
+            console.log('📤 Sending success response:', data);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify(data));
+          }
+        };
+        
+        // Call the image generation handler
+        await generateImageHandler(mockReq, mockRes);
+        
+      } catch (error) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid JSON' }));
+      }
+    });
     return;
   }
   
@@ -94,7 +142,9 @@ server.listen(PORT, () => {
   console.log(`🚀 Minimal Groq API Server running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
   console.log(`🤖 Text generation: http://localhost:${PORT}/api/generate-text`);
+  console.log(`🖼️ Image generation: http://localhost:${PORT}/api/generate-image`);
   console.log(`🔑 Groq API Key configured: ${!!process.env.GROQ_API_KEY}`);
+  console.log(`🔑 HuggingFace API Key configured: ${!!process.env.HUGGING_FACE_API_KEY}`);
 });
 
 // Handle process termination

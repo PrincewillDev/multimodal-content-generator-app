@@ -94,6 +94,39 @@ const GeneratedContent: React.FC<GeneratedContentProps> = ({
     }
   };
   
+  // Image download function
+  const downloadImage = async (imageUrl: string, filename: string = 'generated-image.jpg') => {
+    try {
+      // Handle base64 data URLs
+      if (imageUrl.startsWith('data:')) {
+        const link = document.createElement('a');
+        link.href = imageUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        return;
+      }
+
+      // Handle regular URLs
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download image:', error);
+      // Fallback: open image in new tab
+      window.open(imageUrl, '_blank');
+    }
+  };
   // Format time in MM:SS
   const formatTime = (time: number) => {
     if (isNaN(time)) return '0:00';
@@ -147,6 +180,17 @@ const GeneratedContent: React.FC<GeneratedContentProps> = ({
                 e.currentTarget.src = 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80';
               }}
             />
+            {/* Download Image Button */}
+            <div className="absolute bottom-4 right-4">
+              <Button
+                onClick={() => downloadImage(imageURL, `${headline}.jpg`)}
+                variant="outline"
+                className="flex items-center space-x-2 bg-white border border-slate-300 rounded-full shadow-sm hover:shadow-md transition-all duration-200"
+              >
+                <Download className="w-4 h-4 text-slate-600" />
+                <span className="text-slate-600 font-medium">Download Image</span>
+              </Button>
+            </div>
           </div>
         ) : (
           <div className="w-full max-w-2xl aspect-video bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 flex items-center justify-center">
