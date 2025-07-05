@@ -6,6 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Play, Download, RefreshCcw } from "lucide-react";
 import { API_CONFIG, getApiUrl } from "@/config/api";
 import GeneratedContent from "@/components/GeneratedContent";
+import { useWebSpeech } from "@/hooks/useWebSpeech";
 
 // Type definitions for better type safety
 type ToneType = 'playful' | 'serious' | 'bold';
@@ -15,6 +16,7 @@ interface GeneratedContent {
   caption: string;
   imageURL: string;
   audioURL: string;
+  imageError?: string;
 }
 
 const Index = () => {
@@ -27,7 +29,8 @@ const Index = () => {
     headline: '',
     caption: '',
     imageURL: '',
-    audioURL: ''
+    audioURL: '',
+    imageError: undefined
   });
   
   // UI state
@@ -37,6 +40,9 @@ const Index = () => {
     image: false,
     audio: false
   });
+
+  // Web Speech API hook for voice generation
+  const webSpeech = useWebSpeech();
 
   // Input handlers
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,7 +62,8 @@ const Index = () => {
         headline: '',
         caption: '',
         imageURL: '',
-        audioURL: ''
+        audioURL: '',
+        imageError: undefined
       });
       setShowResults(true);
       setLoadingStates({ text: true, image: true, audio: true });
@@ -86,13 +93,13 @@ const Index = () => {
         setGeneratedContent(prev => ({ ...prev, headline, caption }));
         setLoadingStates(prev => ({ ...prev, text: false }));
 
-        // Generate audio from the caption
+        // Generate audio from the caption using Web Speech API
         try {
-          const audioURL = await generateAudio(caption, selectedTone);
-          setGeneratedContent(prev => ({ ...prev, audioURL }));
+          // Web Speech API generates audio instantly, no async needed
+          setGeneratedContent(prev => ({ ...prev, audioURL: 'web-speech-ready' }));
           setLoadingStates(prev => ({ ...prev, audio: false }));
         } catch (audioError) {
-          console.error('Audio generation failed:', audioError);
+          console.error('Audio preparation failed:', audioError);
           setLoadingStates(prev => ({ ...prev, audio: false }));
         }
       } else {
@@ -107,6 +114,15 @@ const Index = () => {
       } else {
         console.error('Image generation failed:', imageResponse);
         setLoadingStates(prev => ({ ...prev, image: false }));
+        
+        // Set error message for image generation
+        if (imageResponse.status === 'rejected') {
+          const errorMessage = imageResponse.reason?.message || 'Image generation failed';
+          setGeneratedContent(prev => ({ 
+            ...prev, 
+            imageError: errorMessage 
+          }));
+        }
       }
 
     } catch (error) {
@@ -208,68 +224,48 @@ const Index = () => {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        throw new Error(`Image API request failed: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({}));
+        
+        // Handle specific error types
+        if (response.status === 503 && errorData.modelLoading) {
+          throw new Error(`AI model is loading. Please try again in ${errorData.retryAfter || 60} seconds.`);
+        } else if (response.status === 408 && errorData.timeout) {
+          throw new Error(`Request timed out. Please try again.`);
+        } else if (response.status === 400) {
+          throw new Error(`Configuration error: ${errorData.message || 'API key not configured'}`);
+        } else {
+          throw new Error(`Image generation failed: ${errorData.message || response.statusText}`);
+        }
       }
 
       const data = await response.json();
-      return data.imageURL || data.url || getFallbackImage(tone);
+      
+      if (!data.imageURL) {
+        throw new Error('No image URL received from API');
+      }
+      
+      return data.imageURL;
     } catch (error) {
       clearTimeout(timeoutId);
       console.error('Image generation error:', error);
-      return getFallbackImage(tone);
+      throw error; // Re-throw to be handled by the caller
     }
   };
 
-  // Helper function for fallback images
-  const getFallbackImage = (tone: ToneType) => {
-    const fallbackImages = {
-      playful: 'https://images.unsplash.com/photo-1513475382585-d06e58bcb0e0?auto=format&fit=crop&w=800&q=80',
-      serious: 'https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?auto=format&fit=crop&w=800&q=80',
-      bold: 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?auto=format&fit=crop&w=800&q=80'
-    };
-    return fallbackImages[tone];
-  };
-
-  // Audio Generation API Function
+  // Audio Generation Function - Now using Web Speech API
   const generateAudio = async (text: string, tone: ToneType) => {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.timeouts.audio);
-
     try {
-      const voiceSettings = {
-        playful: { voice: 'cheerful', speed: 1.1, pitch: 1.1 },
-        serious: { voice: 'professional', speed: 1.0, pitch: 1.0 },
-        bold: { voice: 'confident', speed: 0.9, pitch: 0.9 }
-      };
-
-      const response = await fetch(getApiUrl('generateAudio'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          text: text,
-          tone: tone, // Pass the tone to the API
-          voice: voiceSettings[tone].voice,
-          speed: voiceSettings[tone].speed,
-          pitch: voiceSettings[tone].pitch,
-          format: API_CONFIG.defaults.audio.format
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`Audio API request failed: ${response.statusText}`);
+      // Web Speech API is available instantly, no need for async calls
+      if (webSpeech.isSupported) {
+        console.log(`🎤 Web Speech API ready for ${tone} tone audio generation`);
+        return 'web-speech-ready'; // Special marker indicating Web Speech API is ready
+      } else {
+        console.warn('⚠️ Web Speech API not supported in this browser');
+        return 'web-speech-not-supported';
       }
-
-      const data = await response.json();
-      return data.audioURL || '/placeholder-audio.mp3';
     } catch (error) {
-      clearTimeout(timeoutId);
-      console.error('Audio generation error:', error);
-      return '/placeholder-audio.mp3';
+      console.error('Audio preparation error:', error);
+      return 'web-speech-error';
     }
   };
 
@@ -495,7 +491,11 @@ const Index = () => {
                 caption={generatedContent.caption}
                 imageURL={generatedContent.imageURL}
                 audioURL={generatedContent.audioURL}
+                imageError={generatedContent.imageError}
                 isLoading={loadingStates}
+                webSpeech={webSpeech}
+                selectedTone={selectedTone}
+                onRegenerate={handleRegenerate}
               />
               
               {/* Regenerate Controls */}

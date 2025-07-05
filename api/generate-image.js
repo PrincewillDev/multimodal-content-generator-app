@@ -11,13 +11,12 @@ export default async function handler(req, res) {
 
     
     // Get Hugging Face API key from environment
-    const HF_API_KEY = process.env.HUGGING_FACE_API_KEY;
+    const HF_API_KEY = process.env.HUGGING_FACE_API_KEY || process.env.HF_API_KEY;
     if (!HF_API_KEY || HF_API_KEY === 'your_hugging_face_api_key_here') {
-      console.log('⚠️ Hugging Face API key not configured, using fallback');
-      return res.status(200).json({
-        imageURL: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=512&h=512&fit=crop',
-        fallback: true,
-        message: 'Using placeholder image - configure HUGGING_FACE_API_KEY for AI generation'
+      console.log('🚨 Hugging Face API key not configured');
+      return res.status(400).json({
+        error: 'Hugging Face API key not configured',
+        message: 'Please configure HUGGING_FACE_API_KEY in your environment variables'
       });
     }
 
@@ -93,11 +92,11 @@ export default async function handler(req, res) {
         
         // Check if model is loading
         if (response.status === 503) {
-          return res.status(200).json({
-            imageURL: 'https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?w=1024&h=1024&fit=crop',
-            fallback: true,
-            message: 'AI model is loading, using placeholder. Try again in a few moments.',
-            modelLoading: true
+          return res.status(503).json({
+            error: 'Model loading',
+            message: 'The AI model is currently loading. Please try again in a few moments.',
+            modelLoading: true,
+            retryAfter: 60
           });
         }
         
@@ -135,7 +134,12 @@ export default async function handler(req, res) {
       // Handle specific timeout errors
       if (fetchError.name === 'AbortError') {
         console.log('⏰ Request timed out - model may be loading');
-        throw new Error('Image generation timed out - please try again');
+        return res.status(408).json({
+          error: 'Request timeout',
+          message: 'Image generation timed out. The model may be loading, please try again.',
+          timeout: true,
+          retryAfter: 60
+        });
       }
       
       throw fetchError;
@@ -144,18 +148,11 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('🚨 Image generation error:', error);
     
-    // Provide tone-appropriate fallback images from Unsplash
-    const fallbackImages = {
-      playful: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1024&h=1024&fit=crop',
-      serious: 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=1024&h=1024&fit=crop',
-      bold: 'https://images.unsplash.com/photo-1541807084-5bf52138f0d6?w=1024&h=1024&fit=crop'
-    };
-
-    return res.status(200).json({
-      imageURL: fallbackImages[tone] || fallbackImages.playful,
-      fallback: true,
-      error: error.message,
-      message: 'Using fallback image due to generation error'
+    // Pure Hugging Face approach - no fallback images
+    return res.status(500).json({
+      error: 'Image generation failed',
+      message: error.message || 'Failed to generate image with Hugging Face API',
+      details: 'Please try again or check your internet connection'
     });
   }
 }
