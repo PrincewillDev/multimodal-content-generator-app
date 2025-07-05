@@ -142,6 +142,23 @@ export default async function handler(req, res) {
         });
       }
       
+      // Handle network connectivity issues
+      if (fetchError.cause && fetchError.cause.code === 'UND_ERR_CONNECT_TIMEOUT') {
+        console.log('🌐 Network connectivity issue detected');
+        return res.status(503).json({
+          error: 'Network connectivity issue',
+          message: 'Unable to connect to Hugging Face API. This may be due to network restrictions or firewall settings.',
+          networkIssue: true,
+          suggestions: [
+            'Check your internet connection',
+            'Try using a different network (e.g., mobile hotspot)',
+            'Contact your network administrator if on corporate network',
+            'Try again in a few minutes'
+          ],
+          retryAfter: 30
+        });
+      }
+      
       throw fetchError;
     }
 

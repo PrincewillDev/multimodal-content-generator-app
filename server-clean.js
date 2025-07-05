@@ -4,12 +4,8 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import dotenv from 'dotenv';
 
-// Load environment variables first
+// Load environment variables
 dotenv.config();
-
-// Import API handlers
-import generateTextHandler from './api/generate-text.js';
-import generateImageHandler from './api/generate-image.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,15 +13,11 @@ const __dirname = dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://multimodal-content-generator.onrender.com']
-    : ['http://localhost:5173', 'http://localhost:8080', 'http://localhost:8081'],
-  credentials: true
-}));
-
+// Basic middleware
+app.use(cors());
 app.use(express.json({ limit: '10mb' }));
+
+// Serve static files from dist directory
 app.use(express.static(join(__dirname, 'dist')));
 
 // Health check endpoint
@@ -33,47 +25,52 @@ app.get('/api/health', (req, res) => {
   const hasGroqToken = !!(process.env.GROQ_API_KEY && process.env.GROQ_API_KEY !== 'your_groq_api_key_here');
   const hasHfToken = !!(process.env.HUGGING_FACE_API_KEY && process.env.HUGGING_FACE_API_KEY !== 'your_hugging_face_api_key_here');
 
-  console.log('🏥 Health Check');
-  console.log('🔑 Groq API Key configured:', hasGroqToken);
-  console.log('🔑 HuggingFace API Key configured:', hasHfToken);
-
   res.json({
     status: 'healthy',
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
     port: PORT,
     apis: {
-      hasGroqToken,
-      hasHfToken
+      groq: hasGroqToken,
+      huggingface: hasHfToken
     }
   });
 });
 
-// API Routes
-app.post('/api/generate-text', generateTextHandler);
-app.post('/api/generate-image', generateImageHandler);
+// API Routes - import handlers dynamically to avoid module loading issues
+app.post('/api/generate-text', async (req, res) => {
+  try {
+    const { default: handler } = await import('./api/generate-text.js');
+    await handler(req, res);
+  } catch (error) {
+    console.error('Text generation error:', error);
+    res.status(500).json({ error: 'Text generation failed' });
+  }
+});
 
-// Serve React app for all other routes (SPA)
+app.post('/api/generate-image', async (req, res) => {
+  try {
+    const { default: handler } = await import('./api/generate-image.js');
+    await handler(req, res);
+  } catch (error) {
+    console.error('Image generation error:', error);
+    res.status(500).json({ error: 'Image generation failed' });
+  }
+});
+
+// Serve React app for all other routes (SPA support)
 app.get('*', (req, res) => {
   res.sendFile(join(__dirname, 'dist', 'index.html'));
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({
-    error: 'Internal server error',
-    message: process.env.NODE_ENV === 'production' ? 'Something went wrong' : err.message
-  });
-});
-
+// Start server
 app.listen(PORT, () => {
   console.log(`🚀 Multimodal Content Generator running on port ${PORT}`);
   console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`📱 Features: AI Text Generation, Image Generation, Web Speech API`);
   
   if (process.env.NODE_ENV === 'production') {
-    console.log(`🌐 Live URL: https://multimodal-content-generator.onrender.com`);
+    console.log(`🌐 Ready for deployment on Render`);
   } else {
     console.log(`🔧 Local server: http://localhost:${PORT}`);
   }
