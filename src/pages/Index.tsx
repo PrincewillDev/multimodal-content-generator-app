@@ -374,7 +374,6 @@ const Index = () => {
                       className="flex items-center justify-center h-16 px-6 rounded-xl border-2 border-slate-200 bg-white/70 backdrop-blur-sm cursor-pointer transition-all duration-200 hover:border-pink-300 hover:shadow-md peer-checked:border-pink-400 peer-checked:bg-pink-50/80 peer-checked:shadow-lg"
                     >
                       <div className="text-center">
-                        <div className="text-2xl mb-1">🎉</div>
                         <div className="font-semibold text-slate-700">Playful</div>
                       </div>
                     </Label>
@@ -391,7 +390,6 @@ const Index = () => {
                       className="flex items-center justify-center h-16 px-6 rounded-xl border-2 border-slate-200 bg-white/70 backdrop-blur-sm cursor-pointer transition-all duration-200 hover:border-blue-300 hover:shadow-md peer-checked:border-blue-400 peer-checked:bg-blue-50/80 peer-checked:shadow-lg"
                     >
                       <div className="text-center">
-                        <div className="text-2xl mb-1">💼</div>
                         <div className="font-semibold text-slate-700">Serious</div>
                       </div>
                     </Label>
@@ -528,7 +526,7 @@ const Index = () => {
                   <span>Regenerate Image</span>
                 </Button>
                 
-                <Button
+                {/* <Button
                   onClick={() => handleRegenerate('audio')}
                   disabled={loadingStates.audio}
                   variant="outline"
@@ -540,7 +538,7 @@ const Index = () => {
                     <RefreshCcw className="h-4 w-4" />
                   )}
                   <span>Regenerate Audio</span>
-                </Button>
+                </Button> */}
               </div>
             </div>
           )}
